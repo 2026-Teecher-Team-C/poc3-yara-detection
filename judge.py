@@ -4,7 +4,7 @@ import time
 import yara
 
 HASH_BLACKLIST = {
-    "13db60afb914a2ee9b3649d1947d58046d1a9e9b8e4114d80b1d5c142b4ed7fa", #EICAR
+    "275a021bbfb6489e54d471899f7db9d1663fc695ec2fe2a2c4538aabf651fd0f", #EICAR
 }
 
 _rule = yara.compile(filepath = "eicar.yar")
@@ -22,10 +22,26 @@ def judge(data : bytes) -> str:
 
 
 if __name__ == "__main__":
-    eicar = b"X5O!P%@AP[4\\PZX54(P^)7CC)7}$EICAR-STANDARD-ANTIVIRUS-TEST-FILE!$H+H*"
-    safe = b"just a normal file"
+    import os
 
-    for name, sample in [("eicar", eicar), ("safe", safe)]:
+    eicar = b"X5O!P%@AP[4\\PZX54(P^)7CC)7}$EICAR-STANDARD-ANTIVIRUS-TEST-FILE!$H+H*"
+    eicar_variant = b"---prefix---" + eicar + b"---suffix---"
+    png_header = b"\x89PNG\r\n\x1a\n\x00\x00\x00\rIHDR" + os.urandom(200)
+    pdf_header = b"%PDF-1.4\n%\xe2\xe3\xcf\xd3\n1 0 obj" + os.urandom(200)
+    zip_header = b"PK\x03\x04" + os.urandom(200)
+
+    samples = [
+        ("eicar (표준 테스트 문자열)", eicar),
+        ("eicar_variant (해시 불일치, YARA만 매칭)", eicar_variant),
+        ("plain_text", b"just a normal file"),
+        ("empty_bytes", b""),
+        ("png_like (1KB)", png_header),
+        ("pdf_like (1KB)", pdf_header),
+        ("zip_like (1KB)", zip_header),
+        ("large_safe_file (1MB)", os.urandom(1024 * 1024)),
+    ]
+
+    for name, sample in samples:
         start = time.perf_counter()
         result = judge(sample)
         elapsed = (time.perf_counter() - start) * 1000
